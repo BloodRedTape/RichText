@@ -155,8 +155,10 @@ std::vector<sf::Text> RichTextLine::build(const RichFont &rich_font, const sf::S
 }
 
 void RichTextLine::rebuild(){
-    if(!m_CharacterSize || !m_Font || !m_String.getSize())
+    if(!m_CharacterSize || !m_Font || !m_String.getSize()){
+        m_Texts = {};
         return;
+    }
 
     m_Texts = RichTextLine::build(*m_Font, m_String, m_CharacterSize);
 }
