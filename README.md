@@ -1,1 +1,1 @@
-# RichText
+# RichText SFML library
