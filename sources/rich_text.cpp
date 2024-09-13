@@ -76,6 +76,10 @@ void RichTextLine::setString(const std::string& string){
     setString(sf::String::fromUtf8(string.begin(), string.end()));
 }
 
+sf::String RichTextLine::getString() const{
+    return m_String;
+}
+
 void RichTextLine::setCharacterSize(int size){
     m_CharacterSize = size;
 
@@ -106,6 +110,10 @@ void RichTextLine::setOutlineThickness(float thickness){
 void RichTextLine::setStyle(sf::Text::Style style){
     for(auto &text: m_Texts)
         text.setStyle(style);
+}
+
+bool RichTextLine::drawn() const{
+    return m_CharacterSize && m_Font && m_String.getSize();
 }
 
 std::vector<sf::Text> RichTextLine::build(const RichFont &rich_font, const sf::String& string, int character_size){
@@ -154,19 +162,51 @@ std::vector<sf::Text> RichTextLine::build(const RichFont &rich_font, const sf::S
     return texts;
 }
 
-void RichTextLine::rebuild(){
-    if(!m_CharacterSize || !m_Font || !m_String.getSize()){
+void RichTextLine::rebuild(const sf::String& string){
+    if(!drawn()){
         m_Texts = {};
         return;
     }
 
-    m_Texts = RichTextLine::build(*m_Font, m_String, m_CharacterSize);
+    m_Texts = RichTextLine::build(*m_Font, string, m_CharacterSize);
+}
+
+void RichTextLine::rebuild(){
+    rebuild(m_String);
 }
 
 void RichTextLine::draw(sf::RenderTarget& target, sf::RenderStates states) const{
+    if(!m_Texts.size())
+        return;
+
     states.transform *= getTransform();
 
     for (const auto &text : m_Texts) {
         target.draw(text, states);
+    }
+}
+
+void ElipsisRichTextLine::setMaxWidth(int width){
+    m_MaxWidth = width;
+
+    rebuild();
+}
+
+void ElipsisRichTextLine::rebuild(){
+    RichTextLine::rebuild();
+
+    if(!m_MaxWidth || !drawn())
+        return;
+
+    sf::String initial = getString();
+
+    while (getLocalBounds().width > m_MaxWidth) {
+        if (!initial.getSize()) {
+            RichTextLine::rebuild("");
+            LogRichText(Error, "elipsis can't fit any text into % width", m_MaxWidth);
+            return;
+        }
+        initial.erase(initial.getSize() - 1);
+        RichTextLine::rebuild(initial + L"...");
     }
 }

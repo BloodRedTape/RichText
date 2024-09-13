@@ -31,6 +31,8 @@ public:
 
 	void setString(const std::string &string);
 
+	sf::String getString()const;
+
 	void setCharacterSize(int size);
 
 	void setRichFont(const RichFont &font);
@@ -42,10 +44,23 @@ public:
 	void setOutlineThickness(float thickness);
 
 	void setStyle(sf::Text::Style style);
-private:
+
+	bool drawn()const;
+protected:
 	static std::vector<sf::Text> build(const RichFont &font, const sf::String &string, int character_size);
 
-	void rebuild();
+	void rebuild(const sf::String &string);
+
+	virtual void rebuild();
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
 };
+
+class ElipsisRichTextLine : public RichTextLine {
+	int m_MaxWidth = 0;
+public:
+	void setMaxWidth(int width);
+
+	void rebuild()override;
+};
+
