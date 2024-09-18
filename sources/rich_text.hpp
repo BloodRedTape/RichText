@@ -1,17 +1,17 @@
 #pragma once
 
 #include <optional>
-#include <SFML/Graphics/Font.hpp>
+#include "color_text.hpp"
 #include <SFML/Graphics/Text.hpp>
 
 class RichFont {
-	std::vector<sf::Font> m_Fonts;
+	std::vector<ColorFont> m_Fonts;
 public:
-	RichFont(std::vector<sf::Font> &&fonts);
+	RichFont(std::vector<ColorFont> &&fonts);
 
 	bool valid()const;
 
-	const sf::Font *findFontForGlyph(std::uint32_t codepoint)const;
+	const ColorFont *findFontForGlyph(std::uint32_t codepoint)const;
 
 	static RichFont loadFromFile(const std::string &filepath);
 
@@ -20,7 +20,7 @@ public:
 
 class RichTextLine: public sf::Drawable, public sf::Transformable{
 private:
-	std::vector<sf::Text> m_Texts;
+	std::vector<ColorText> m_Texts;
 	sf::String m_String;
 	const RichFont *m_Font = nullptr;
 	int m_CharacterSize = 0;
@@ -47,7 +47,7 @@ public:
 
 	bool drawn()const;
 protected:
-	static std::vector<sf::Text> build(const RichFont &font, const sf::String &string, int character_size);
+	static std::vector<ColorText> build(const RichFont &font, const sf::String &string, int character_size);
 
 	void rebuild(const sf::String &string);
 

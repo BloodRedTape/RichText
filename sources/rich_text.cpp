@@ -4,7 +4,7 @@
 
 DEFINE_LOG_CATEGORY(RichText)
 
-RichFont::RichFont(std::vector<sf::Font>&& fonts):
+RichFont::RichFont(std::vector<ColorFont>&& fonts):
 	m_Fonts(std::move(fonts))
 {}
 
@@ -12,7 +12,7 @@ bool RichFont::valid() const{
 	return m_Fonts.size();
 }
 
-const sf::Font *RichFont::findFontForGlyph(std::uint32_t codepoint) const{
+const ColorFont *RichFont::findFontForGlyph(std::uint32_t codepoint) const{
 	if(!m_Fonts.size()){
 		LogRichText(Error, "Using invalid font");
 		return nullptr;
@@ -31,10 +31,10 @@ RichFont RichFont::loadFromFile(const std::string& filepath){
 }
 
 RichFont RichFont::loadFromFiles(std::initializer_list<std::string> filepath){
-	std::vector<sf::Font> fonts;
+	std::vector<ColorFont> fonts;
 	
 	for (const auto& path: filepath) {
-		sf::Font font;
+		ColorFont font;
 		if(!font.loadFromFile(path)){
 			LogRichText(Error, "Can't load font from '%'", path);
 			continue;
@@ -116,21 +116,21 @@ bool RichTextLine::drawn() const{
     return m_CharacterSize && m_Font && m_String.getSize();
 }
 
-std::vector<sf::Text> RichTextLine::build(const RichFont &rich_font, const sf::String& string, int character_size){
+std::vector<ColorText> RichTextLine::build(const RichFont &rich_font, const sf::String& string, int character_size){
     if (!rich_font.valid()) {
         LogRichText(Error, "Using invalid font for text line");
         return {};
     }
     
-    std::vector<sf::Text> texts;
+    std::vector<ColorText> texts;
     sf::String last_string;
-    const sf::Font* last_font = nullptr;
+    const ColorFont* last_font = nullptr;
     
     sf::Vector2f position;
 
     auto Flush = [&]() {
         if (!last_string.isEmpty()) {
-            sf::Text text(last_string, *last_font, character_size);
+            ColorText text(last_string, *last_font, character_size);
             text.setPosition(position);
 
             //text.setOutlineThickness(outline);
@@ -144,7 +144,7 @@ std::vector<sf::Text> RichTextLine::build(const RichFont &rich_font, const sf::S
     };
     
     for (const auto& character : string) {
-        const sf::Font* font = rich_font.findFontForGlyph(character);
+        const ColorFont* font = rich_font.findFontForGlyph(character);
 
         if (!font) 
             continue;
