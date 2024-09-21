@@ -248,6 +248,8 @@ public:
     ////////////////////////////////////////////////////////////
     bool isSmooth() const;
 
+    bool isColorEmojiFont()const;
+
     ////////////////////////////////////////////////////////////
     /// \brief Overload of assignment operator
     ///
@@ -341,7 +343,7 @@ private:
     /// \return True on success, false if any error happened
     ///
     ////////////////////////////////////////////////////////////
-    bool setCurrentSize(unsigned int characterSize) const;
+    int setCurrentSize(unsigned int characterSize) const;
 
     ////////////////////////////////////////////////////////////
     // Types

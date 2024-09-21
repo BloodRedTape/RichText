@@ -164,8 +164,9 @@ void ColorText::setFillColor(const sf::Color& color)
         // (if geometry is updated anyway, we can skip this step)
         if (!m_geometryNeedUpdate)
         {
+            auto real_fill_color = m_font && m_font->isColorEmojiFont() ? sf::Color::White : m_fillColor;
             for (std::size_t i = 0; i < m_vertices.getVertexCount(); ++i)
-                m_vertices[i].color = m_fillColor;
+                m_vertices[i].color = real_fill_color;
         }
     }
 }
@@ -341,7 +342,7 @@ void ColorText::draw(sf::RenderTarget& target, sf::RenderStates states) const
         // Only draw the outline if there is something to draw
         if (m_outlineThickness != 0)
             target.draw(m_outlineVertices, states);
-
+        
         target.draw(m_vertices, states);
     }
 }
@@ -465,7 +466,8 @@ void ColorText::ensureGeometryUpdate() const
         const Glyph& glyph = m_font->getGlyph(curChar, m_characterSize, isBold);
 
         // Add the glyph to the vertices
-        addGlyphQuad(m_vertices, Vector2f(x, y), m_fillColor, glyph, italicShear);
+        auto real_fill_color = m_font->isColorEmojiFont() ? sf::Color::White : m_fillColor;
+        addGlyphQuad(m_vertices, Vector2f(x, y), real_fill_color, glyph, italicShear);
 
         // Update the current bounds
         float left   = glyph.bounds.left;

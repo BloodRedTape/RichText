@@ -466,6 +466,15 @@ bool ColorFont::isSmooth() const
     return m_isSmooth;
 }
 
+bool ColorFont::isColorEmojiFont() const
+{
+    FT_Face face = static_cast<FT_Face>(m_face);
+    if (!face)
+        return false;
+
+    return FT_HAS_COLOR(face);
+}
+
 
 ////////////////////////////////////////////////////////////
 ColorFont& ColorFont::operator =(const ColorFont& right)
@@ -545,6 +554,43 @@ ColorFont::Page& ColorFont::loadPage(unsigned int characterSize) const
     return pageIterator->second;
 }
 
+static sf::Image ScaleImage(const sf::Image &sourceImage, float scaleFactor) {
+    unsigned int originalWidth = sourceImage.getSize().x;
+    unsigned int originalHeight = sourceImage.getSize().y;
+    unsigned int newWidth = static_cast<unsigned int>(std::floor(originalWidth * scaleFactor));
+    unsigned int newHeight = static_cast<unsigned int>(std::floor(originalHeight * scaleFactor));
+    
+    sf::Image scaledImage;
+    scaledImage.create(newWidth, newHeight);
+
+    for (unsigned int y = 0; y < newHeight; ++y) {
+        for (unsigned int x = 0; x < newWidth; ++x) {
+            float gx = ((float)x / newWidth) * (originalWidth - 1);
+            float gy = ((float)y / newHeight) * (originalHeight - 1);
+            unsigned int gxi = static_cast<unsigned int>(gx);
+            unsigned int gyi = static_cast<unsigned int>(gy);
+            sf::Color c00 = sourceImage.getPixel(gxi, gyi);
+            sf::Color c10 = sourceImage.getPixel(gxi + 1 >= originalWidth ? gxi : gxi + 1, gyi);
+            sf::Color c01 = sourceImage.getPixel(gxi, gyi + 1 >= originalHeight ? gyi : gyi + 1);
+            sf::Color c11 = sourceImage.getPixel(gxi + 1 >= originalWidth ? gxi : gxi + 1,
+                                                 gyi + 1 >= originalHeight ? gyi : gyi + 1);
+
+            float dx = gx - gxi;
+            float dy = gy - gyi;
+            sf::Color result(
+                static_cast<sf::Uint8>((c00.r * (1 - dx) + c10.r * dx) * (1 - dy) + (c01.r * (1 - dx) + c11.r * dx) * dy),
+                static_cast<sf::Uint8>((c00.g * (1 - dx) + c10.g * dx) * (1 - dy) + (c01.g * (1 - dx) + c11.g * dx) * dy),
+                static_cast<sf::Uint8>((c00.b * (1 - dx) + c10.b * dx) * (1 - dy) + (c01.b * (1 - dx) + c11.b * dx) * dy),
+                static_cast<sf::Uint8>((c00.a * (1 - dx) + c10.a * dx) * (1 - dy) + (c01.a * (1 - dx) + c11.a * dx) * dy)
+            );
+
+            scaledImage.setPixel(x, y, result);
+        }
+    }
+
+    return scaledImage;
+}
+
 ////////////////////////////////////////////////////////////
 Glyph ColorFont::loadGlyph(Uint32 codePoint, unsigned int characterSize, bool bold, float outlineThickness) const
 {
@@ -557,7 +603,8 @@ Glyph ColorFont::loadGlyph(Uint32 codePoint, unsigned int characterSize, bool bo
         return glyph;
 
     // Set the character size
-    if (!setCurrentSize(characterSize)){
+    int renderedSize = setCurrentSize(characterSize);
+    if (renderedSize == 0){
         err() << "Can't set size for char: " << codePoint << '\n';
         return glyph;
     }
@@ -623,16 +670,21 @@ Glyph ColorFont::loadGlyph(Uint32 codePoint, unsigned int characterSize, bool bo
             err() << "Failed to outline glyph (no fallback available)" << std::endl;
     }
 
+    auto scaleFactor = characterSize / float(renderedSize);
+
     // Compute the glyph's advance offset
     glyph.advance = static_cast<float>(bitmapGlyph->root.advance.x >> 16);
     if (bold)
         glyph.advance += static_cast<float>(weight) / static_cast<float>(1 << 6);
 
-    glyph.lsbDelta = static_cast<int>(face->glyph->lsb_delta);
-    glyph.rsbDelta = static_cast<int>(face->glyph->rsb_delta);
+    glyph.advance *= scaleFactor;
 
-    unsigned int width  = bitmap.width;
-    unsigned int height = bitmap.rows;
+    glyph.lsbDelta = static_cast<int>(face->glyph->lsb_delta) * scaleFactor;
+    glyph.rsbDelta = static_cast<int>(face->glyph->rsb_delta) * scaleFactor;
+
+
+    unsigned int width  = bitmap.width * scaleFactor;
+    unsigned int height = bitmap.rows * scaleFactor;
 
     if ((width > 0) && (height > 0))
     {
@@ -657,10 +709,10 @@ Glyph ColorFont::loadGlyph(Uint32 codePoint, unsigned int characterSize, bool bo
         glyph.textureRect.height -= static_cast<int>(2 * padding);
 
         // Compute the glyph's bounding box
-        glyph.bounds.left   = static_cast<float>( bitmapGlyph->left);
-        glyph.bounds.top    = static_cast<float>(-bitmapGlyph->top);
-        glyph.bounds.width  = static_cast<float>( bitmap.width);
-        glyph.bounds.height = static_cast<float>( bitmap.rows);
+        glyph.bounds.left   = static_cast<float>( bitmapGlyph->left * scaleFactor);
+        glyph.bounds.top    = static_cast<float>(-bitmapGlyph->top * scaleFactor);
+        glyph.bounds.width  = static_cast<float>( bitmap.width * scaleFactor);
+        glyph.bounds.height = static_cast<float>( bitmap.rows * scaleFactor);
 
         // Resize the pixel buffer to the new size and fill it with transparent white pixels
         m_pixelBuffer.resize(width * height * 4);
@@ -694,19 +746,44 @@ Glyph ColorFont::loadGlyph(Uint32 codePoint, unsigned int characterSize, bool bo
         }
         else if (bitmap.pixel_mode == FT_PIXEL_MODE_BGRA) 
         {
-            for (unsigned int y = padding; y < height - padding; ++y)
+            sf::Image emoji;
+            emoji.create(bitmap.width, bitmap.rows);
+
+            for (unsigned int y = 0; y < bitmap.rows; ++y)
             {
-                for (unsigned int x = padding; x < width - padding; ++x)
+                for (unsigned int x = 0; x < bitmap.width; ++x)
                 {
                     // The color channels remain white, just fill the alpha channel
-                    std::size_t sourceIndex = (x - padding) * 4;
-                    std::size_t index = x + y * width;
-                    m_pixelBuffer[index * 4 + 0] = pixels[sourceIndex + 2];
-                    m_pixelBuffer[index * 4 + 1] = pixels[sourceIndex + 1];
-                    m_pixelBuffer[index * 4 + 2] = pixels[sourceIndex + 0];
-                    m_pixelBuffer[index * 4 + 3] = pixels[sourceIndex + 3];
+                    std::size_t sourceIndex = (x) * 4;
+                    std::size_t index = x + y * bitmap.width;
+
+                    emoji.setPixel(x, y, {
+                        pixels[sourceIndex + 2],
+                        pixels[sourceIndex + 1],
+                        pixels[sourceIndex + 0],
+                        pixels[sourceIndex + 3]
+                    });
                 }
+
                 pixels += bitmap.pitch;
+            }
+
+            if(renderedSize != characterSize)
+                emoji = ScaleImage(emoji, scaleFactor);
+
+            for (unsigned int y = 0; y < emoji.getSize().y; ++y)
+            {
+                for (unsigned int x = 0; x < emoji.getSize().x; ++x)
+                {
+                    auto pixel = emoji.getPixel(x, y);
+
+                    auto index = (padding + y) * width + padding + x;
+                    
+                    m_pixelBuffer[index * 4 + 0] = pixel.r;
+                    m_pixelBuffer[index * 4 + 1] = pixel.g;
+                    m_pixelBuffer[index * 4 + 2] = pixel.b;
+                    m_pixelBuffer[index * 4 + 3] = pixel.a;
+                }
             }
         }
         else
@@ -810,7 +887,7 @@ IntRect ColorFont::findGlyphRect(Page& page, unsigned int width, unsigned int he
 
 
 ////////////////////////////////////////////////////////////
-bool ColorFont::setCurrentSize(unsigned int characterSize) const
+int ColorFont::setCurrentSize(unsigned int characterSize) const
 {
     // FT_Set_Pixel_Sizes is an expensive function, so we must call it
     // only when necessary to avoid killing performances
@@ -833,7 +910,7 @@ bool ColorFont::setCurrentSize(unsigned int characterSize) const
                 }
             }
             FT_Error result = FT_Select_Size(face, best_match);
-            return result == FT_Err_Ok;
+            return result == FT_Err_Ok ? face->available_sizes[best_match].height : 0;
         }
 
         FT_Error result = FT_Set_Pixel_Sizes(face, 0, characterSize);
@@ -858,10 +935,10 @@ bool ColorFont::setCurrentSize(unsigned int characterSize) const
                 err() << "Failed to set font size to " << characterSize << std::endl;
             }
         }
-        return result == FT_Err_Ok;
+        return result == FT_Err_Ok ? characterSize : 0;
     }
 
-    return true;
+    return characterSize;
 }
 
 ColorFont::Page::Page(bool smooth) :
