@@ -64,3 +64,52 @@ public:
 	void rebuild()override;
 };
 
+enum class RichTextAlignment {
+	Left,
+	Center,
+	Right
+};
+
+class RichText : public sf::Drawable, public sf::Transformable {
+	std::vector<RichTextLine> m_Lines;
+	sf::String m_String;
+	const RichFont *m_Font = nullptr;
+	int m_CharacterSize = 0;
+	int m_LineSpacing = 0;
+	RichTextAlignment m_Alignment = RichTextAlignment::Left;
+public:
+    sf::FloatRect getLocalBounds()const;
+
+	void setString(const sf::String &string);
+
+	void setString(const std::string &string);
+
+	sf::String getString()const;
+
+	void setCharacterSize(int size);
+
+	void setLineSpacing(int spacing);
+
+	void setRichFont(const RichFont &font);
+
+	void setFillColor(const sf::Color &color);
+
+	void setOutlineColor(const sf::Color &color);
+
+	void setOutlineThickness(float thickness);
+
+	void setStyle(sf::Text::Style style);
+
+	void setAlignment(RichTextAlignment alignment);
+
+	bool drawn()const;
+protected:
+	static std::vector<RichTextLine> build(const RichFont &font, const sf::String &string, int character_size, int line_spacing, RichTextAlignment alignment);
+
+	void rebuild(const sf::String &string);
+
+	virtual void rebuild();
+
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
+};
+

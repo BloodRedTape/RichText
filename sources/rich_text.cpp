@@ -210,3 +210,156 @@ void ElipsisRichTextLine::rebuild(){
         RichTextLine::rebuild(initial + L"...");
     }
 }
+
+
+sf::FloatRect RichText::getLocalBounds() const{
+    sf::FloatRect bounds;
+    for (const auto& line: m_Lines) {
+        sf::FloatRect localBounds = line.getLocalBounds();
+        sf::Vector2f position = line.getPosition();
+        localBounds.left += position.x;
+        localBounds.top += position.y;
+
+        if (bounds.width == 0 && bounds.height == 0) {
+            bounds = localBounds;
+        } else {
+            bounds.left = std::min(bounds.left, localBounds.left);
+            bounds.top = std::min(bounds.top, localBounds.top);
+            bounds.width = std::max(bounds.left + bounds.width, localBounds.left + localBounds.width) - bounds.left;
+            bounds.height = std::max(bounds.top + bounds.height, localBounds.top + localBounds.height) - bounds.top;
+        }
+    }
+    return bounds;
+}
+
+void RichText::setString(const sf::String& string){
+    m_String = string;
+
+    rebuild();
+}
+
+void RichText::setString(const std::string& string){
+    setString(sf::String::fromUtf8(string.begin(), string.end()));
+}
+
+sf::String RichText::getString() const{
+    return m_String;
+}
+
+void RichText::setCharacterSize(int size){
+    m_CharacterSize = size;
+
+    rebuild();
+}
+
+void RichText::setLineSpacing(int spacing)
+{
+    m_LineSpacing = spacing;
+
+    rebuild();
+}
+
+void RichText::setRichFont(const RichFont& font){
+    m_Font = &font;
+
+    rebuild();
+}
+
+void RichText::setFillColor(const sf::Color& color){
+    for(auto &line: m_Lines)
+        line.setFillColor(color);
+}
+
+void RichText::setOutlineColor(const sf::Color& color){
+    for(auto &line: m_Lines)
+        line.setOutlineColor(color);
+}
+
+void RichText::setOutlineThickness(float thickness){
+    for(auto &line: m_Lines)
+        line.setOutlineThickness(thickness);
+}
+
+void RichText::setStyle(sf::Text::Style style){
+    for(auto &line: m_Lines)
+        line.setStyle(style);
+}
+
+
+void RichText::setAlignment(RichTextAlignment alignment){
+    m_Alignment = alignment;
+
+    rebuild();
+}
+
+bool RichText::drawn() const{
+    return m_CharacterSize && m_Font && m_String.getSize();
+}
+
+static float GetXForAlignment(const RichTextLine &line, RichTextAlignment alignment) {
+    if(alignment == RichTextAlignment::Left)
+        return 0;
+    if(alignment == RichTextAlignment::Right)
+        return -line.getLocalBounds().width;
+    if(alignment == RichTextAlignment::Center)
+        return -line.getLocalBounds().width / 2;
+    return 0;
+}
+
+std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String& string, int character_size, int line_spacing, RichTextAlignment alignment){
+
+    std::vector<RichTextLine> result;
+
+    auto push_line = [&, offset = 0](const sf::String &string) mutable {
+        RichTextLine line;
+        line.setString(string);
+        line.setCharacterSize(character_size);
+        line.setRichFont(font);
+
+        line.setPosition(sf::Vector2f(GetXForAlignment(line, alignment), offset));
+        result.push_back(line);
+
+        offset += character_size + line_spacing;
+    };
+
+    sf::String current;
+
+    for (auto ch : string) {
+        if (ch != '\n') {
+            current += ch;
+            continue;
+        }
+        
+        push_line(current);
+        current = {};
+    }
+
+    push_line(current);
+    current = {};
+    
+    return result;
+}
+
+void RichText::rebuild(const sf::String& string){
+    if(!drawn()){
+        m_Lines = {};
+        return;
+    }
+
+    m_Lines = RichText::build(*m_Font, string, m_CharacterSize, m_LineSpacing, m_Alignment);
+}
+
+void RichText::rebuild(){
+    rebuild(m_String);
+}
+
+void RichText::draw(sf::RenderTarget& target, sf::RenderStates states) const{
+    if(!m_Lines.size())
+        return;
+
+    states.transform *= getTransform();
+
+    for (const auto &line: m_Lines) {
+        target.draw(line, states);
+    }
+}
