@@ -292,6 +292,10 @@ void RichText::setAlignment(RichTextAlignment alignment){
     rebuild();
 }
 
+int RichText::getLinesCount() const{
+    return m_Lines.size();
+}
+
 bool RichText::drawn() const{
     return m_CharacterSize && m_Font && m_String.getSize();
 }

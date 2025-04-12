@@ -102,6 +102,8 @@ public:
 
 	void setAlignment(RichTextAlignment alignment);
 
+	int getLinesCount()const;
+
 	bool drawn()const;
 protected:
 	static std::vector<RichTextLine> build(const RichFont &font, const sf::String &string, int character_size, int line_spacing, RichTextAlignment alignment);
