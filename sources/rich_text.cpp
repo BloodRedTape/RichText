@@ -322,20 +322,23 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
         offset += character_size + line_spacing;
     };
 
-    sf::String current;
+    std::optional<sf::String> current;
 
     for (auto ch : string) {
         if (ch != '\n') {
-            current += ch;
+            if(!current.has_value())
+                current = "";
+            current.value() += ch;
             continue;
         }
         
-        push_line(current);
+        if(current.has_value())
+            push_line(current.value());
         current = {};
     }
-
-    push_line(current);
-    current = {};
+    
+    if(current.has_value())
+        push_line(current.value());
     
     return result;
 }
