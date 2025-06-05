@@ -26,6 +26,20 @@ const ColorFont *RichFont::findFontForGlyph(std::uint32_t codepoint) const{
 	return &m_Fonts.front();
 }
 
+float RichFont::getAscent(unsigned int characterSize) const {
+    if(!m_Fonts.size())
+        return 0.f;
+
+    return m_Fonts.front().getAscent(characterSize);
+}
+
+float RichFont::getDescent(unsigned int characterSize) const {
+    if(!m_Fonts.size())
+        return 0.f;
+
+    return m_Fonts.front().getDescent(characterSize);
+}
+
 RichFont RichFont::loadFromFile(const std::string& filepath){
 	return loadFromFiles({filepath});
 }
@@ -63,7 +77,29 @@ sf::FloatRect RichTextLine::getLocalBounds()const{
             bounds.height = std::max(bounds.top + bounds.height, localBounds.top + localBounds.height) - bounds.top;
         }
     }
+
     return bounds;
+}
+sf::Vector2f RichTextLine::getTypographicSize()const {
+    return {getLocalBounds().getSize().x, getAscent() + getDescent()};
+}
+
+float RichTextLine::getMaxLineHeight()const {
+    return getAscent() + getDescent();
+}
+
+float RichTextLine::getAscent()const {
+    if(!m_Font)
+        return 0.f;
+
+    return m_Font->getAscent(m_CharacterSize);
+}
+
+float RichTextLine::getDescent()const {
+    if(!m_Font)
+        return 0.f;
+
+    return m_Font->getDescent(m_CharacterSize);
 }
 
 void RichTextLine::setString(const sf::String& string){
@@ -230,6 +266,31 @@ sf::FloatRect RichText::getLocalBounds() const{
         }
     }
     return bounds;
+}
+
+sf::Vector2f RichText::getTypographicSize()const {
+    if(!m_Lines.size())
+        return {};
+
+    auto ascent = m_Lines.front().getAscent();
+    auto descent = m_Lines.front().getDescent();
+    auto spacing = m_LineSpacing;
+    
+    return {getLocalBounds().getSize().x, spacing * (m_Lines.size() - 1) + ascent + descent};
+}
+
+float RichText::getAscent()const {
+    if(!m_Font)
+        return 0.f;
+
+    return m_Font->getAscent(m_CharacterSize);
+}
+
+float RichText::getDescent()const {
+    if(!m_Font)
+        return 0.f;
+
+    return m_Font->getDescent(m_CharacterSize);
 }
 
 void RichText::setString(const sf::String& string){

@@ -8,6 +8,7 @@
 #include <freetype2/freetype/tttables.h> 
 #include <cstdlib>
 #include <cstring>
+#include <cassert>
 #include <cmath>
 #include <SFML/System/Err.hpp>
 #include <SFML/System/InputStream.hpp>
@@ -341,6 +342,44 @@ bool ColorFont::hasGlyph(Uint32 codePoint) const
 {
     return FT_Get_Char_Index(static_cast<FT_Face>(m_face), codePoint) != 0;
 }
+
+////////////////////////////////////////////////////////////
+float ColorFont::getAscent(unsigned int characterSize) const
+{
+    FT_Face face = static_cast<FT_Face>(m_face);
+
+    if (setCurrentSize(characterSize))
+    {
+        if (!FT_IS_SCALABLE(face))
+            return static_cast<float>(face->size->metrics.ascender) / static_cast<float>(1 << 6);
+
+        return static_cast<float>(FT_MulFix(face->ascender, face->size->metrics.y_scale)) / static_cast<float>(1 << 6);
+    }
+    else
+    {
+        return 0.f;
+    }
+}
+
+
+////////////////////////////////////////////////////////////
+float ColorFont::getDescent(unsigned int characterSize) const
+{
+    FT_Face face = static_cast<FT_Face>(m_face);
+
+    if (setCurrentSize(characterSize))
+    {
+        if (!FT_IS_SCALABLE(face))
+            return static_cast<float>(-face->size->metrics.descender) / static_cast<float>(1 << 6);
+
+        return static_cast<float>(FT_MulFix(-face->descender, face->size->metrics.y_scale)) / static_cast<float>(1 << 6);
+    }
+    else
+    {
+        return 0.f;
+    }
+}
+
 
 
 ////////////////////////////////////////////////////////////

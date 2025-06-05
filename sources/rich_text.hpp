@@ -12,6 +12,10 @@ public:
 	bool valid()const;
 
 	const ColorFont *findFontForGlyph(std::uint32_t codepoint)const;
+	
+	float getAscent(unsigned int characterSize) const;
+
+    float getDescent(unsigned int characterSize) const;
 
 	static RichFont loadFromFile(const std::string &filepath);
 
@@ -26,6 +30,14 @@ private:
 	int m_CharacterSize = 0;
 public:
     sf::FloatRect getLocalBounds()const;
+
+	sf::Vector2f getTypographicSize()const;
+
+	float getMaxLineHeight()const;
+
+	float getAscent()const;
+
+	float getDescent()const;
 
 	void setString(const sf::String &string);
 
@@ -79,6 +91,12 @@ class RichText : public sf::Drawable, public sf::Transformable {
 	RichTextAlignment m_Alignment = RichTextAlignment::Left;
 public:
     sf::FloatRect getLocalBounds()const;
+
+	sf::Vector2f getTypographicSize()const;
+
+	float getAscent()const;
+
+	float getDescent()const;
 
 	void setString(const sf::String &string);
 
