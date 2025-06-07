@@ -352,6 +352,11 @@ void RichText::setAlignment(RichTextAlignment alignment){
 
     rebuild();
 }
+void RichText::setWrapWidth(std::int32_t width) {
+    m_WrapWidth = width;
+
+    rebuild();
+}
 
 int RichText::getLinesCount() const{
     return m_Lines.size();
@@ -371,23 +376,80 @@ static float GetXForAlignment(const RichTextLine &line, RichTextAlignment alignm
     return 0;
 }
 
-std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String& string, int character_size, int line_spacing, RichTextAlignment alignment){
+// Helper to check if a character is whitespace
+static bool IsWhiteSpace(sf::Uint32 c) {
+    return c == ' ';//std::iswspace(static_cast<wchar_t>(c));
+}
+
+static std::string RemoveLastWord(std::string &text) {
+    if (!text.size()) return "";
+
+    // Remove trailing whitespaces
+    std::size_t end = text.size();
+    while (end > 0 && IsWhiteSpace(text[end - 1])) {
+        --end;
+    }
+
+    if (end == 0) return ""; // Only whitespaces in text
+
+    // Find beginning of last word
+    std::size_t start = end;
+    while (start > 0 && !IsWhiteSpace(text[start - 1])) {
+        --start;
+    }
+
+    // Extract last word
+    std::string lastWord = text.substr(start, end - start);
+
+    // Remove last word from text
+    text.erase(start, text.size() - start);
+
+
+    return lastWord;
+}
+
+std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String& string, int character_size, int line_spacing, std::int32_t max_width, RichTextAlignment alignment){
 
     std::vector<RichTextLine> result;
 
-    auto push_line = [&, offset = 0](const sf::String &string) mutable {
-        RichTextLine line;
-        line.setString(string);
-        line.setCharacterSize(character_size);
-        line.setRichFont(font);
+    auto push_line = [&, offset = 0](const std::string &string) mutable {
 
-        line.setPosition(sf::Vector2f(GetXForAlignment(line, alignment), offset));
-        result.push_back(line);
+        std::string text = string;
+        std::string rest;
 
-        offset += character_size + line_spacing;
+        do{
+            RichTextLine line;
+            line.setString(string);
+            line.setCharacterSize(character_size);
+            line.setRichFont(font);
+            
+            for(;;){
+                line.setString(text);
+
+                if(text.size() == 0)
+                    break;
+
+                if(line.getTypographicSize().x < max_width)
+                    break;
+                
+                auto text_size_before = text.size();
+                auto removed = RemoveLastWord(text);
+
+                if(text_size_before == text.size())
+                    break;
+
+                rest = removed + ' ' + rest;
+            }
+
+            line.setPosition(sf::Vector2f(GetXForAlignment(line, alignment), offset));
+            result.push_back(line);
+
+            offset += character_size + line_spacing;
+            text = std::move(rest);
+        }while(text.size());
     };
 
-    std::optional<sf::String> current;
+    std::optional<std::string> current;
 
     for (auto ch : string) {
         if (ch != '\n') {
@@ -397,8 +459,7 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
             continue;
         }
         
-        if(current.has_value())
-            push_line(current.value());
+        push_line(current.value_or(""));
         current = {};
     }
     
@@ -414,7 +475,7 @@ void RichText::rebuild(const sf::String& string){
         return;
     }
 
-    m_Lines = RichText::build(*m_Font, string, m_CharacterSize, m_LineSpacing, m_Alignment);
+    m_Lines = RichText::build(*m_Font, string, m_CharacterSize, m_LineSpacing, m_WrapWidth, m_Alignment);
 }
 
 void RichText::rebuild(){

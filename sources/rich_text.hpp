@@ -88,6 +88,7 @@ class RichText : public sf::Drawable, public sf::Transformable {
 	const RichFont *m_Font = nullptr;
 	int m_CharacterSize = 0;
 	int m_LineSpacing = 0;
+	std::int32_t m_WrapWidth = std::numeric_limits<std::int32_t>::max();
 	RichTextAlignment m_Alignment = RichTextAlignment::Left;
 public:
     sf::FloatRect getLocalBounds()const;
@@ -120,11 +121,13 @@ public:
 
 	void setAlignment(RichTextAlignment alignment);
 
+	void setWrapWidth(std::int32_t width);
+
 	int getLinesCount()const;
 
 	bool drawn()const;
 protected:
-	static std::vector<RichTextLine> build(const RichFont &font, const sf::String &string, int character_size, int line_spacing, RichTextAlignment alignment);
+	static std::vector<RichTextLine> build(const RichFont &font, const sf::String &string, int character_size, int line_spacing, std::int32_t max_width, RichTextAlignment alignment);
 
 	void rebuild(const sf::String &string);
 
