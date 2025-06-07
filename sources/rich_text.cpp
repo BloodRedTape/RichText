@@ -451,7 +451,7 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
 
     std::optional<std::string> current;
 
-    for (auto ch : string) {
+    for (auto ch : string.toUtf8()) {
         if (ch != '\n') {
             if(!current.has_value())
                 current = "";
