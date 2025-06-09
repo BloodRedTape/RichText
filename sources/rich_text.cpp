@@ -420,6 +420,8 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
             line.setString(string);
             line.setCharacterSize(character_size);
             line.setRichFont(font);
+
+            auto initial_text = text.size();
             
             for(;;){
                 line.setString(text);
@@ -430,19 +432,24 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
                 if(line.getTypographicSize().x < max_width)
                     break;
                 
-                auto text_size_before = text.size();
+                auto text_before = text;
                 auto removed = RemoveLastWord(text);
 
-                if(text_size_before == text.size())
+                if(removed == text_before)
                     break;
 
-                rest = removed + ' ' + rest;
+                if(text_before.size() == text.size() || !removed.size())
+                    break;
+
+                rest = removed + (rest.size() ? ' ' + rest : "");
             }
 
             line.setPosition(sf::Vector2f(GetXForAlignment(line, alignment), offset));
             result.push_back(line);
 
             offset += line_spacing;
+
+
             text = std::move(rest);
         }while(text.size());
     };
