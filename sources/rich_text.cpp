@@ -450,7 +450,9 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
             offset += line_spacing;
 
 
-            text = std::move(rest);
+            text.clear();
+            text = rest;
+            rest.clear();
         }while(text.size());
     };
 
