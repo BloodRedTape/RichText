@@ -434,6 +434,16 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
 
     auto push_line = [&, offset = 0](const std::string &string) mutable {
 
+        if(!string.size()){
+            RichTextLine line;
+            line.setString(std::string(""));
+            line.setCharacterSize(character_size);
+            line.setRichFont(font);
+            result.push_back(line);
+
+            offset += line_spacing;
+        }
+
         std::queue<std::string> words = Split(string, ' ');
 
         RichTextLine line;
@@ -445,7 +455,7 @@ std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String
 
         auto push = [&]() {
             if(line_text.size()){
-                if(line_text.back() == ' ')
+                if(line_text.size() > 1 && line_text.back() == ' ')
                     line_text.pop_back();
                 line.setString(line_text);
             }else {
