@@ -1,5 +1,6 @@
 #include "rich_text.hpp"
 #include <bsl/log.hpp>
+#include <queue>
 #include <SFML/Graphics/RenderTarget.hpp>
 
 DEFINE_LOG_CATEGORY(RichText)
@@ -406,54 +407,74 @@ static std::string RemoveLastWord(std::string &text) {
     return lastWord;
 }
 
+static std::queue<std::string> Split(const std::string &string, char by) {
+    std::queue<std::string> words;
+    
+    std::string current;
+    for (auto ch : string) {
+
+        if(ch == by){
+            words.push(current);
+            current = {};
+            continue;
+        }
+
+        current += ch;
+    }
+
+    if(current.size())
+        words.push(current);
+
+    return words;
+}
+
 std::vector<RichTextLine> RichText::build(const RichFont& font, const sf::String& string, int character_size, int line_spacing, std::int32_t max_width, RichTextAlignment alignment){
 
     std::vector<RichTextLine> result;
 
     auto push_line = [&, offset = 0](const std::string &string) mutable {
 
-        std::string text = string;
-        std::string rest;
+        std::queue<std::string> words = Split(string, ' ');
 
-        do{
-            RichTextLine line;
-            line.setString(string);
-            line.setCharacterSize(character_size);
-            line.setRichFont(font);
+        RichTextLine line;
+        line.setString(string);
+        line.setCharacterSize(character_size);
+        line.setRichFont(font);
 
-            auto initial_text = text.size();
-            
-            for(;;){
-                line.setString(text);
+        std::string line_text;
 
-                if(text.size() == 0)
-                    break;
-
-                if(line.getTypographicSize().x < max_width)
-                    break;
-                
-                auto text_before = text;
-                auto removed = RemoveLastWord(text);
-
-                if(removed == text_before)
-                    break;
-
-                if(text_before.size() == text.size() || !removed.size())
-                    break;
-
-                rest = removed + (rest.size() ? ' ' + rest : "");
+        auto push = [&]() {
+            if(line_text.size()){
+                if(line_text.back() == ' ')
+                    line_text.pop_back();
+                line.setString(line_text);
+            }else {
+                line.setString(words.front());
+                words.pop();
             }
-
             line.setPosition(sf::Vector2f(GetXForAlignment(line, alignment), offset));
             result.push_back(line);
 
             offset += line_spacing;
 
+            line_text = {};
+        };
 
-            text.clear();
-            text = rest;
-            rest.clear();
-        }while(text.size());
+        while (words.size()) {
+            line.setString(line_text + words.front());
+
+            if (line.getTypographicSize().x > max_width) {
+                push();
+                continue;
+            }
+            
+            if(words.front().size())
+                line_text += words.front() + ' ';
+            words.pop();
+        }
+
+        if(line_text.size())
+            push();
     };
 
     std::optional<std::string> current;
