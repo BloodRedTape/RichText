@@ -596,8 +596,8 @@ ColorFont::Page& ColorFont::loadPage(unsigned int characterSize) const
 static sf::Image ScaleImage(const sf::Image &sourceImage, float scaleFactor) {
     unsigned int originalWidth = sourceImage.getSize().x;
     unsigned int originalHeight = sourceImage.getSize().y;
-    unsigned int newWidth = static_cast<unsigned int>(std::floor(originalWidth * scaleFactor));
-    unsigned int newHeight = static_cast<unsigned int>(std::floor(originalHeight * scaleFactor));
+    unsigned int newWidth = static_cast<unsigned int>(std::round(originalWidth * scaleFactor));
+    unsigned int newHeight = static_cast<unsigned int>(std::round(originalHeight * scaleFactor));
     
     sf::Image scaledImage;
     scaledImage.create(newWidth, newHeight);

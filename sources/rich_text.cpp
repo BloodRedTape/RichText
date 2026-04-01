@@ -82,7 +82,7 @@ sf::FloatRect RichTextLine::getLocalBounds()const{
     return bounds;
 }
 sf::Vector2f RichTextLine::getTypographicSize()const {
-    return {getLocalBounds().getSize().x, float(m_CharacterSize)};
+    return {getLocalBounds().width, float(m_CharacterSize)};
 }
 
 float RichTextLine::getMaxLineHeight()const {
@@ -275,7 +275,7 @@ sf::Vector2f RichText::getTypographicSize()const {
 
     auto spacing = m_LineSpacing;
     
-    return {getLocalBounds().getSize().x, float(spacing * (m_Lines.size() - 1) + m_CharacterSize)};
+    return {getLocalBounds().width, float(spacing * (m_Lines.size() - 1) + m_CharacterSize)};
 }
 
 float RichText::getAscent()const {
