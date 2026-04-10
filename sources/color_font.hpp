@@ -40,6 +40,10 @@ public:
 
     void* getFaceHandle() const;
 
+    void* getHarfBuzzFont() const;
+
+    void* getHarfBuzzBuffer() const;
+
     float getAscent(unsigned int characterSize) const;
 
     float getDescent(unsigned int characterSize) const;
@@ -108,6 +112,8 @@ private:
     Info                    m_info;
     mutable PageTable       m_pages;
     mutable std::vector<uint8_t> m_pixelBuffer;
+    mutable void*               m_hbFont;
+    mutable void*               m_hbBuffer;
     #ifdef SFML_SYSTEM_ANDROID
     void*                   m_stream;
     #endif

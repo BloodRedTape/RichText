@@ -6,6 +6,8 @@
 #include FT_BITMAP_H
 #include FT_STROKER_H
 #include <freetype/tttables.h>
+#include <hb.h>
+#include <hb-ft.h>
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
@@ -61,7 +63,9 @@ m_streamRec(nullptr),
 m_stroker  (nullptr),
 m_refCount (nullptr),
 m_isSmooth (true),
-m_info     ()
+m_info     (),
+m_hbFont   (nullptr),
+m_hbBuffer (nullptr)
 {
     #ifdef SFML_SYSTEM_ANDROID
         m_stream = nullptr;
@@ -79,7 +83,9 @@ m_refCount   (copy.m_refCount),
 m_isSmooth   (copy.m_isSmooth),
 m_info       (copy.m_info),
 m_pages      (copy.m_pages),
-m_pixelBuffer(copy.m_pixelBuffer)
+m_pixelBuffer(copy.m_pixelBuffer),
+m_hbFont     (nullptr),
+m_hbBuffer   (nullptr)
 {
     #ifdef SFML_SYSTEM_ANDROID
         m_stream = nullptr;
@@ -492,6 +498,26 @@ void* ColorFont::getFaceHandle() const
     return m_face;
 }
 
+void* ColorFont::getHarfBuzzFont() const
+{
+    if (!m_hbFont && m_face)
+    {
+        auto* hbFont = hb_ft_font_create(static_cast<FT_Face>(m_face), nullptr);
+        hb_ft_font_set_funcs(hbFont);
+        m_hbFont = hbFont;
+    }
+    return m_hbFont;
+}
+
+void* ColorFont::getHarfBuzzBuffer() const
+{
+    if (!m_hbBuffer)
+    {
+        m_hbBuffer = hb_buffer_create();
+    }
+    return m_hbBuffer;
+}
+
 
 ////////////////////////////////////////////////////////////
 ColorFont& ColorFont::operator =(const ColorFont& right)
@@ -507,6 +533,8 @@ ColorFont& ColorFont::operator =(const ColorFont& right)
     std::swap(m_info,        temp.m_info);
     std::swap(m_pages,       temp.m_pages);
     std::swap(m_pixelBuffer, temp.m_pixelBuffer);
+    std::swap(m_hbFont,      temp.m_hbFont);
+    std::swap(m_hbBuffer,    temp.m_hbBuffer);
 
     #ifdef SFML_SYSTEM_ANDROID
         std::swap(m_stream, temp.m_stream);
@@ -519,6 +547,18 @@ ColorFont& ColorFont::operator =(const ColorFont& right)
 ////////////////////////////////////////////////////////////
 void ColorFont::cleanup()
 {
+    if (m_hbBuffer)
+    {
+        hb_buffer_destroy(static_cast<hb_buffer_t*>(m_hbBuffer));
+        m_hbBuffer = nullptr;
+    }
+
+    if (m_hbFont)
+    {
+        hb_font_destroy(static_cast<hb_font_t*>(m_hbFont));
+        m_hbFont = nullptr;
+    }
+
     if (m_refCount)
     {
         (*m_refCount)--;
