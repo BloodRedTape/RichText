@@ -34,7 +34,11 @@ public:
 
     const sf::Glyph& getGlyph(uint32_t codePoint, unsigned int characterSize, bool bold, float outlineThickness = 0) const;
 
+    const sf::Glyph& getGlyphByIndex(uint32_t glyphIndex, unsigned int characterSize, bool bold, float outlineThickness = 0) const;
+
     bool hasGlyph(uint32_t codePoint) const;
+
+    void* getFaceHandle() const;
 
     float getAscent(unsigned int characterSize) const;
 
@@ -86,6 +90,8 @@ private:
     Page& loadPage(unsigned int characterSize) const;
 
     sf::Glyph loadGlyph(uint32_t codePoint, unsigned int characterSize, bool bold, float outlineThickness) const;
+
+    sf::Glyph loadGlyphByIndex(uint32_t glyphIndex, unsigned int characterSize, bool bold, float outlineThickness) const;
 
     sf::IntRect findGlyphRect(Page& page, unsigned int width, unsigned int height) const;
 

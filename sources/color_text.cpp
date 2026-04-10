@@ -5,6 +5,11 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <cmath>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include <hb.h>
+#include <hb-ft.h>
+
 using namespace sf;
 
 namespace
@@ -371,33 +376,79 @@ void ColorText::ensureGeometryUpdate() const
     float minY = static_cast<float>(m_characterSize);
     float maxX = 0.f;
     float maxY = 0.f;
-    uint32_t prevChar = 0;
+
+    // Use HarfBuzz to shape the text
+    FT_Face ftFace = static_cast<FT_Face>(m_font->getFaceHandle());
+    if (!ftFace)
+        return;
+
+    // Set the size before creating HarfBuzz font
+    m_font->getGlyph(L' ', m_characterSize, isBold); // ensures size is set
+
+    hb_font_t* hbFont = hb_ft_font_create(ftFace, nullptr);
+    hb_ft_font_set_funcs(hbFont);
+
+    FT_Int32 loadFlags = (FT_HAS_COLOR(ftFace) ? FT_LOAD_COLOR : FT_LOAD_TARGET_NORMAL) | FT_LOAD_FORCE_AUTOHINT;
+    if (m_outlineThickness != 0)
+        loadFlags |= FT_LOAD_NO_BITMAP;
+    hb_ft_font_set_load_flags(hbFont, loadFlags);
+
+    hb_buffer_t* hbBuffer = hb_buffer_create();
+    hb_buffer_set_content_type(hbBuffer, HB_BUFFER_CONTENT_TYPE_UNICODE);
+    hb_buffer_set_direction(hbBuffer, HB_DIRECTION_LTR);
+    hb_buffer_set_script(hbBuffer, HB_SCRIPT_COMMON);
+    hb_buffer_set_cluster_level(hbBuffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
+    // Add codepoints to the buffer
     for (std::size_t i = 0; i < m_string.getSize(); ++i)
+        hb_buffer_add(hbBuffer, m_string[i], static_cast<unsigned int>(i));
+
+    hb_buffer_guess_segment_properties(hbBuffer);
+
+    // Shape
+    hb_shape(hbFont, hbBuffer, nullptr, 0);
+
+    unsigned int glyphCount = hb_buffer_get_length(hbBuffer);
+    const hb_glyph_info_t* glyphInfo = hb_buffer_get_glyph_infos(hbBuffer, nullptr);
+
+    // HarfBuzz is used only for codepoint-to-glyph-index mapping (ZWJ sequences etc.)
+    // Advance/offset are taken from the glyph itself (already scaled by loadGlyphByIndex)
+
+    uint32_t prevCluster = UINT32_MAX;
+    for (unsigned int i = 0; i < glyphCount; ++i)
     {
-        uint32_t curChar = m_string[i];
+        uint32_t glyphIndex = glyphInfo[i].codepoint; // after shaping, this is a glyph index
+        uint32_t cluster = glyphInfo[i].cluster;
+
+        // Get the original codepoint for whitespace/newline checks
+        uint32_t curChar = (cluster < m_string.getSize()) ? m_string[cluster] : 0;
 
         if (curChar == L'\r')
             continue;
 
-        x += m_font->getKerning(prevChar, curChar, m_characterSize, isBold);
-
-        if (isUnderlined && (curChar == L'\n' && prevChar != L'\n'))
+        if (isUnderlined && (curChar == L'\n' && prevCluster != UINT32_MAX))
         {
-            addLine(m_vertices, x, y, m_fillColor, underlineOffset, underlineThickness);
-
-            if (m_outlineThickness != 0)
-                addLine(m_outlineVertices, x, y, m_outlineColor, underlineOffset, underlineThickness, m_outlineThickness);
+            uint32_t prevChar = (prevCluster < m_string.getSize()) ? m_string[prevCluster] : 0;
+            if (prevChar != L'\n')
+            {
+                addLine(m_vertices, x, y, m_fillColor, underlineOffset, underlineThickness);
+                if (m_outlineThickness != 0)
+                    addLine(m_outlineVertices, x, y, m_outlineColor, underlineOffset, underlineThickness, m_outlineThickness);
+            }
         }
 
-        if (isStrikeThrough && (curChar == L'\n' && prevChar != L'\n'))
+        if (isStrikeThrough && (curChar == L'\n' && prevCluster != UINT32_MAX))
         {
-            addLine(m_vertices, x, y, m_fillColor, strikeThroughOffset, underlineThickness);
-
-            if (m_outlineThickness != 0)
-                addLine(m_outlineVertices, x, y, m_outlineColor, strikeThroughOffset, underlineThickness, m_outlineThickness);
+            uint32_t prevChar = (prevCluster < m_string.getSize()) ? m_string[prevCluster] : 0;
+            if (prevChar != L'\n')
+            {
+                addLine(m_vertices, x, y, m_fillColor, strikeThroughOffset, underlineThickness);
+                if (m_outlineThickness != 0)
+                    addLine(m_outlineVertices, x, y, m_outlineColor, strikeThroughOffset, underlineThickness, m_outlineThickness);
+            }
         }
 
-        prevChar = curChar;
+        prevCluster = cluster;
 
         if ((curChar == L' ') || (curChar == L'\n') || (curChar == L'\t'))
         {
@@ -419,11 +470,11 @@ void ColorText::ensureGeometryUpdate() const
 
         if (m_outlineThickness != 0)
         {
-            const Glyph& glyph = m_font->getGlyph(curChar, m_characterSize, isBold, m_outlineThickness);
-            addGlyphQuad(m_outlineVertices, Vector2f(x, y), m_outlineColor, glyph, italicShear);
+            const Glyph& outGlyph = m_font->getGlyphByIndex(glyphIndex, m_characterSize, isBold, m_outlineThickness);
+            addGlyphQuad(m_outlineVertices, Vector2f(x, y), m_outlineColor, outGlyph, italicShear);
         }
 
-        const Glyph& glyph = m_font->getGlyph(curChar, m_characterSize, isBold);
+        const Glyph& glyph = m_font->getGlyphByIndex(glyphIndex, m_characterSize, isBold);
 
         auto real_fill_color = m_font->isColorEmojiFont() ? sf::Color::White : m_fillColor;
         addGlyphQuad(m_vertices, Vector2f(x, y), real_fill_color, glyph, italicShear);
@@ -440,6 +491,9 @@ void ColorText::ensureGeometryUpdate() const
 
         x += glyph.advance + letterSpacing;
     }
+
+    hb_buffer_destroy(hbBuffer);
+    hb_font_destroy(hbFont);
 
     if (m_outlineThickness != 0)
     {

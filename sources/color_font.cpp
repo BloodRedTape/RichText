@@ -300,6 +300,27 @@ const Glyph& ColorFont::getGlyph(uint32_t codePoint, unsigned int characterSize,
 
 
 ////////////////////////////////////////////////////////////
+const Glyph& ColorFont::getGlyphByIndex(uint32_t glyphIndex, unsigned int characterSize, bool bold, float outlineThickness) const
+{
+    GlyphTable& glyphs = loadPage(characterSize).glyphs;
+
+    // Use a distinct key space by setting the high bit of bold field to distinguish from codepoint-based keys
+    uint64_t key = combine(outlineThickness, bold, glyphIndex);
+
+    GlyphTable::const_iterator it = glyphs.find(key);
+    if (it != glyphs.end())
+    {
+        return it->second;
+    }
+    else
+    {
+        Glyph glyph = loadGlyphByIndex(glyphIndex, characterSize, bold, outlineThickness);
+        return glyphs.insert(std::make_pair(key, glyph)).first->second;
+    }
+}
+
+
+////////////////////////////////////////////////////////////
 bool ColorFont::hasGlyph(uint32_t codePoint) const
 {
     return FT_Get_Char_Index(static_cast<FT_Face>(m_face), codePoint) != 0;
@@ -464,6 +485,11 @@ bool ColorFont::isColorEmojiFont() const
         return false;
 
     return FT_HAS_COLOR(face);
+}
+
+void* ColorFont::getFaceHandle() const
+{
+    return m_face;
 }
 
 
@@ -644,6 +670,186 @@ Glyph ColorFont::loadGlyph(uint32_t codePoint, unsigned int characterSize, bool 
 
         if (outlineThickness != 0)
             sf::err() << "Failed to outline glyph (no fallback available)" << std::endl;
+    }
+
+    auto scaleFactor = characterSize / float(renderedSize);
+
+    glyph.advance = static_cast<float>(bitmapGlyph->root.advance.x >> 16);
+    if (bold)
+        glyph.advance += static_cast<float>(weight) / static_cast<float>(1 << 6);
+
+    glyph.advance *= scaleFactor;
+
+    glyph.lsbDelta = static_cast<int>(static_cast<float>(face->glyph->lsb_delta) * scaleFactor);
+    glyph.rsbDelta = static_cast<int>(static_cast<float>(face->glyph->rsb_delta) * scaleFactor);
+
+    unsigned int width  = static_cast<unsigned int>(static_cast<float>(bitmap.width) * scaleFactor);
+    unsigned int height = static_cast<unsigned int>(static_cast<float>(bitmap.rows)  * scaleFactor);
+
+    if ((width > 0) && (height > 0))
+    {
+        const unsigned int padding = 2;
+
+        width  += 2 * padding;
+        height += 2 * padding;
+
+        Page& page = loadPage(characterSize);
+
+        glyph.textureRect = findGlyphRect(page, width, height);
+
+        glyph.textureRect.position.x += static_cast<int>(padding);
+        glyph.textureRect.position.y += static_cast<int>(padding);
+        glyph.textureRect.size.x     -= static_cast<int>(2 * padding);
+        glyph.textureRect.size.y     -= static_cast<int>(2 * padding);
+
+        glyph.bounds.position.x =  static_cast<float>(bitmapGlyph->left) * scaleFactor;
+        glyph.bounds.position.y = -static_cast<float>(bitmapGlyph->top)  * scaleFactor;
+        glyph.bounds.size.x     =  static_cast<float>(bitmap.width)      * scaleFactor;
+        glyph.bounds.size.y     =  static_cast<float>(bitmap.rows)       * scaleFactor;
+
+        m_pixelBuffer.resize(width * height * 4);
+
+        uint8_t* current = m_pixelBuffer.data();
+        uint8_t* end     = current + width * height * 4;
+
+        while (current != end)
+        {
+            (*current++) = 255;
+            (*current++) = 255;
+            (*current++) = 255;
+            (*current++) = 0;
+        }
+
+        const uint8_t* pixels = bitmap.buffer;
+        if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO)
+        {
+            for (unsigned int y = padding; y < height - padding; ++y)
+            {
+                for (unsigned int x = padding; x < width - padding; ++x)
+                {
+                    std::size_t index = x + y * width;
+                    m_pixelBuffer[index * 4 + 3] = ((pixels[(x - padding) / 8]) & (1 << (7 - ((x - padding) % 8)))) ? 255 : 0;
+                }
+                pixels += bitmap.pitch;
+            }
+        }
+        else if (bitmap.pixel_mode == FT_PIXEL_MODE_BGRA)
+        {
+            sf::Image emoji(sf::Vector2u{bitmap.width, bitmap.rows});
+
+            for (unsigned int y = 0; y < bitmap.rows; ++y)
+            {
+                for (unsigned int x = 0; x < bitmap.width; ++x)
+                {
+                    std::size_t sourceIndex = x * 4;
+                    emoji.setPixel({x, y}, sf::Color{
+                        pixels[sourceIndex + 2],
+                        pixels[sourceIndex + 1],
+                        pixels[sourceIndex + 0],
+                        pixels[sourceIndex + 3]
+                    });
+                }
+                pixels += bitmap.pitch;
+            }
+
+            if (renderedSize != characterSize)
+                emoji = ScaleImage(emoji, scaleFactor);
+
+            for (unsigned int y = 0; y < emoji.getSize().y; ++y)
+            {
+                for (unsigned int x = 0; x < emoji.getSize().x; ++x)
+                {
+                    auto pixel = emoji.getPixel({x, y});
+                    auto index = (padding + y) * width + padding + x;
+
+                    m_pixelBuffer[index * 4 + 0] = pixel.r;
+                    m_pixelBuffer[index * 4 + 1] = pixel.g;
+                    m_pixelBuffer[index * 4 + 2] = pixel.b;
+                    m_pixelBuffer[index * 4 + 3] = pixel.a;
+                }
+            }
+        }
+        else
+        {
+            for (unsigned int y = padding; y < height - padding; ++y)
+            {
+                for (unsigned int x = padding; x < width - padding; ++x)
+                {
+                    std::size_t index = x + y * width;
+                    m_pixelBuffer[index * 4 + 3] = pixels[x - padding];
+                }
+                pixels += bitmap.pitch;
+            }
+        }
+
+        unsigned int x = static_cast<unsigned int>(glyph.textureRect.position.x) - padding;
+        unsigned int y = static_cast<unsigned int>(glyph.textureRect.position.y) - padding;
+        unsigned int w = static_cast<unsigned int>(glyph.textureRect.size.x) + 2 * padding;
+        unsigned int h = static_cast<unsigned int>(glyph.textureRect.size.y) + 2 * padding;
+        page.texture.update(m_pixelBuffer.data(), sf::Vector2u{w, h}, sf::Vector2u{x, y});
+    }
+
+    FT_Done_Glyph(glyphDesc);
+
+    return glyph;
+}
+
+
+////////////////////////////////////////////////////////////
+Glyph ColorFont::loadGlyphByIndex(uint32_t glyphIndex, unsigned int characterSize, bool bold, float outlineThickness) const
+{
+    Glyph glyph;
+
+    FT_Face face = static_cast<FT_Face>(m_face);
+    if (!face)
+        return glyph;
+
+    int renderedSize = setCurrentSize(characterSize);
+    if (renderedSize == 0)
+        return glyph;
+
+    FT_Int32 flags = (FT_HAS_COLOR(face) ? FT_LOAD_COLOR : FT_LOAD_TARGET_NORMAL) | FT_LOAD_FORCE_AUTOHINT;
+
+    if (outlineThickness != 0)
+        flags |= FT_LOAD_NO_BITMAP;
+    if (FT_Load_Glyph(face, glyphIndex, flags) != 0)
+        return glyph;
+
+    FT_Glyph glyphDesc;
+    if (FT_Get_Glyph(face->glyph, &glyphDesc) != 0)
+        return glyph;
+
+    FT_Pos weight  = 1 << 6;
+    bool   outline = (glyphDesc->format == FT_GLYPH_FORMAT_OUTLINE);
+    if (outline)
+    {
+        if (bold)
+        {
+            FT_OutlineGlyph outlineGlyph = reinterpret_cast<FT_OutlineGlyph>(glyphDesc);
+            FT_Outline_Embolden(&outlineGlyph->outline, weight);
+        }
+
+        if (outlineThickness != 0)
+        {
+            FT_Stroker stroker = static_cast<FT_Stroker>(m_stroker);
+            FT_Stroker_Set(stroker, static_cast<FT_Fixed>(outlineThickness * static_cast<float>(1 << 6)), FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
+            FT_Glyph_Stroke(&glyphDesc, stroker, true);
+        }
+    }
+
+    if (FT_Glyph_To_Bitmap(&glyphDesc, FT_RENDER_MODE_NORMAL, 0, 1))
+    {
+        FT_Done_Glyph(glyphDesc);
+        return glyph;
+    }
+
+    FT_BitmapGlyph bitmapGlyph = reinterpret_cast<FT_BitmapGlyph>(glyphDesc);
+    FT_Bitmap&     bitmap      = bitmapGlyph->bitmap;
+
+    if (!outline)
+    {
+        if (bold)
+            FT_Bitmap_Embolden(static_cast<FT_Library>(m_library), &bitmap, weight, weight);
     }
 
     auto scaleFactor = characterSize / float(renderedSize);
