@@ -5,6 +5,8 @@
 #include <SFML/Graphics/Transformable.hpp>
 #include <SFML/System/String.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
+#include <SFML/Graphics/Text.hpp>
+#include <cstdint>
 
 class ColorText : public sf::Drawable, public sf::Transformable
 {
@@ -24,7 +26,7 @@ public:
 
     void setLetterSpacing(float spacingFactor);
 
-    void setStyle(sf::Uint32 style);
+    void setStyle(sf::Text::Style style);
 
     void setFillColor(const sf::Color& color);
 
@@ -42,7 +44,7 @@ public:
 
     float getLineSpacing() const;
 
-    sf::Uint32 getStyle() const;
+    sf::Text::Style getStyle() const;
 
     const sf::Color& getFillColor() const;
 
@@ -62,18 +64,18 @@ private:
 
     void ensureGeometryUpdate() const;
 
-    sf::String              m_string;              //!< String to display
-    const ColorFont*         m_font;                //!< Font used to display the string
-    unsigned int        m_characterSize;       //!< Base size of characters, in pixels
-    float               m_letterSpacingFactor; //!< Spacing factor between letters
-    float               m_lineSpacingFactor;   //!< Spacing factor between lines
-    sf::Uint32              m_style;               //!< Text style (see Style enum)
-    sf::Color               m_fillColor;           //!< Text fill color
-    sf::Color               m_outlineColor;        //!< Text outline color
-    float               m_outlineThickness;    //!< Thickness of the text's outline
-    mutable sf::VertexArray m_vertices;            //!< Vertex array containing the fill geometry
-    mutable sf::VertexArray m_outlineVertices;     //!< Vertex array containing the outline geometry
-    mutable sf::FloatRect   m_bounds;              //!< Bounding rectangle of the text (in local coordinates)
-    mutable bool        m_geometryNeedUpdate;  //!< Does the geometry need to be recomputed?
-    mutable sf::Uint64      m_fontTextureId;       //!< The font texture id
+    sf::String              m_string;
+    const ColorFont*        m_font;
+    unsigned int            m_characterSize;
+    float                   m_letterSpacingFactor;
+    float                   m_lineSpacingFactor;
+    sf::Text::Style         m_style;
+    sf::Color               m_fillColor;
+    sf::Color               m_outlineColor;
+    float                   m_outlineThickness;
+    mutable sf::VertexArray m_vertices;
+    mutable sf::VertexArray m_outlineVertices;
+    mutable sf::FloatRect   m_bounds;
+    mutable bool            m_geometryNeedUpdate;
+    mutable uint64_t        m_fontTextureId;
 };

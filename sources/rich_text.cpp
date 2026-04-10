@@ -1,6 +1,7 @@
 #include "rich_text.hpp"
 #include <bsl/log.hpp>
 #include <queue>
+#include <cstdint>
 #include <SFML/Graphics/RenderTarget.hpp>
 
 DEFINE_LOG_CATEGORY(RichText)
@@ -66,23 +67,27 @@ sf::FloatRect RichTextLine::getLocalBounds()const{
     for (const auto& text : m_Texts) {
         sf::FloatRect localBounds = text.getLocalBounds();
         sf::Vector2f position = text.getPosition();
-        localBounds.left += position.x;
-        localBounds.top += position.y;
+        localBounds.position.x += position.x;
+        localBounds.position.y += position.y;
 
-        if (bounds.width == 0 && bounds.height == 0) {
+        if (bounds.size.x == 0 && bounds.size.y == 0) {
             bounds = localBounds;
         } else {
-            bounds.left = std::min(bounds.left, localBounds.left);
-            bounds.top = std::min(bounds.top, localBounds.top);
-            bounds.width = std::max(bounds.left + bounds.width, localBounds.left + localBounds.width) - bounds.left;
-            bounds.height = std::max(bounds.top + bounds.height, localBounds.top + localBounds.height) - bounds.top;
+            float newLeft   = std::min(bounds.position.x, localBounds.position.x);
+            float newTop    = std::min(bounds.position.y, localBounds.position.y);
+            float newRight  = std::max(bounds.position.x + bounds.size.x, localBounds.position.x + localBounds.size.x);
+            float newBottom = std::max(bounds.position.y + bounds.size.y, localBounds.position.y + localBounds.size.y);
+            bounds.position.x = newLeft;
+            bounds.position.y = newTop;
+            bounds.size.x     = newRight  - newLeft;
+            bounds.size.y     = newBottom - newTop;
         }
     }
 
     return bounds;
 }
 sf::Vector2f RichTextLine::getTypographicSize()const {
-    return {getLocalBounds().width, float(m_CharacterSize)};
+    return {getLocalBounds().size.x, float(m_CharacterSize)};
 }
 
 float RichTextLine::getMaxLineHeight()const {
@@ -171,7 +176,7 @@ std::vector<ColorText> RichTextLine::build(const RichFont &rich_font, const sf::
             text.setPosition(position);
 
             //text.setOutlineThickness(outline);
-            position.x += text.getLocalBounds().width; //+ outline * 2; // Consider outline thickness
+            position.x += text.getLocalBounds().size.x; //+ outline * 2; // Consider outline thickness
 
             texts.emplace_back(std::move(text));
         }
@@ -237,7 +242,7 @@ void ElipsisRichTextLine::rebuild(){
 
     sf::String initial = getString();
 
-    while (getLocalBounds().width > m_MaxWidth) {
+    while (getLocalBounds().size.x > m_MaxWidth) {
         if (!initial.getSize()) {
             RichTextLine::rebuild("");
             LogRichText(Error, "elipsis can't fit any text into % width", m_MaxWidth);
@@ -254,16 +259,20 @@ sf::FloatRect RichText::getLocalBounds() const{
     for (const auto& line: m_Lines) {
         sf::FloatRect localBounds = line.getLocalBounds();
         sf::Vector2f position = line.getPosition();
-        localBounds.left += position.x;
-        localBounds.top += position.y;
+        localBounds.position.x += position.x;
+        localBounds.position.y += position.y;
 
-        if (bounds.width == 0 && bounds.height == 0) {
+        if (bounds.size.x == 0 && bounds.size.y == 0) {
             bounds = localBounds;
         } else {
-            bounds.left = std::min(bounds.left, localBounds.left);
-            bounds.top = std::min(bounds.top, localBounds.top);
-            bounds.width = std::max(bounds.left + bounds.width, localBounds.left + localBounds.width) - bounds.left;
-            bounds.height = std::max(bounds.top + bounds.height, localBounds.top + localBounds.height) - bounds.top;
+            float newLeft   = std::min(bounds.position.x, localBounds.position.x);
+            float newTop    = std::min(bounds.position.y, localBounds.position.y);
+            float newRight  = std::max(bounds.position.x + bounds.size.x, localBounds.position.x + localBounds.size.x);
+            float newBottom = std::max(bounds.position.y + bounds.size.y, localBounds.position.y + localBounds.size.y);
+            bounds.position.x = newLeft;
+            bounds.position.y = newTop;
+            bounds.size.x     = newRight  - newLeft;
+            bounds.size.y     = newBottom - newTop;
         }
     }
     return bounds;
@@ -275,7 +284,7 @@ sf::Vector2f RichText::getTypographicSize()const {
 
     auto spacing = m_LineSpacing;
     
-    return {getLocalBounds().width, float(spacing * (m_Lines.size() - 1) + m_CharacterSize)};
+    return {getLocalBounds().size.x, float(spacing * (m_Lines.size() - 1) + m_CharacterSize)};
 }
 
 float RichText::getAscent()const {
@@ -369,14 +378,14 @@ static float GetXForAlignment(const RichTextLine &line, RichTextAlignment alignm
     if(alignment == RichTextAlignment::Left)
         return 0;
     if(alignment == RichTextAlignment::Right)
-        return -line.getLocalBounds().width;
+        return -line.getLocalBounds().size.x;
     if(alignment == RichTextAlignment::Center)
-        return -line.getLocalBounds().width / 2;
+        return -line.getLocalBounds().size.x / 2;
     return 0;
 }
 
 // Helper to check if a character is whitespace
-static bool IsWhiteSpace(sf::Uint32 c) {
+static bool IsWhiteSpace(uint32_t c) {
     return c == ' ';//std::iswspace(static_cast<wchar_t>(c));
 }
 

@@ -57,7 +57,7 @@ public:
 
 	void setStyle(sf::Text::Style style);
 
-	bool drawn()const;
+	bool drawn() const;
 protected:
 	static std::vector<ColorText> build(const RichFont &font, const sf::String &string, int character_size);
 

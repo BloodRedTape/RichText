@@ -9,52 +9,50 @@ using namespace sf;
 
 namespace
 {
-    // Add an underline or strikethrough line to the vertex array
     void addLine(sf::VertexArray& vertices, float lineLength, float lineTop, const sf::Color& color, float offset, float thickness, float outlineThickness = 0)
     {
-        float top = std::floor(lineTop + offset - (thickness / 2) + 0.5f);
+        float top    = std::floor(lineTop + offset - (thickness / 2) + 0.5f);
         float bottom = top + std::floor(thickness + 0.5f);
 
-        vertices.append(sf::Vertex(sf::Vector2f(-outlineThickness,             top    - outlineThickness), color, sf::Vector2f(1, 1)));
-        vertices.append(sf::Vertex(sf::Vector2f(lineLength + outlineThickness, top    - outlineThickness), color, sf::Vector2f(1, 1)));
-        vertices.append(sf::Vertex(sf::Vector2f(-outlineThickness,             bottom + outlineThickness), color, sf::Vector2f(1, 1)));
-        vertices.append(sf::Vertex(sf::Vector2f(-outlineThickness,             bottom + outlineThickness), color, sf::Vector2f(1, 1)));
-        vertices.append(sf::Vertex(sf::Vector2f(lineLength + outlineThickness, top    - outlineThickness), color, sf::Vector2f(1, 1)));
-        vertices.append(sf::Vertex(sf::Vector2f(lineLength + outlineThickness, bottom + outlineThickness), color, sf::Vector2f(1, 1)));
+        vertices.append(sf::Vertex{sf::Vector2f(-outlineThickness,             top    - outlineThickness), color, sf::Vector2f(1, 1)});
+        vertices.append(sf::Vertex{sf::Vector2f(lineLength + outlineThickness, top    - outlineThickness), color, sf::Vector2f(1, 1)});
+        vertices.append(sf::Vertex{sf::Vector2f(-outlineThickness,             bottom + outlineThickness), color, sf::Vector2f(1, 1)});
+        vertices.append(sf::Vertex{sf::Vector2f(-outlineThickness,             bottom + outlineThickness), color, sf::Vector2f(1, 1)});
+        vertices.append(sf::Vertex{sf::Vector2f(lineLength + outlineThickness, top    - outlineThickness), color, sf::Vector2f(1, 1)});
+        vertices.append(sf::Vertex{sf::Vector2f(lineLength + outlineThickness, bottom + outlineThickness), color, sf::Vector2f(1, 1)});
     }
 
-    // Add a glyph quad to the vertex array
     void addGlyphQuad(sf::VertexArray& vertices, sf::Vector2f position, const sf::Color& color, const sf::Glyph& glyph, float italicShear)
     {
         float padding = 1.0;
 
-        float left   = glyph.bounds.left - padding;
-        float top    = glyph.bounds.top - padding;
-        float right  = glyph.bounds.left + glyph.bounds.width + padding;
-        float bottom = glyph.bounds.top  + glyph.bounds.height + padding;
+        float left   = glyph.bounds.position.x - padding;
+        float top    = glyph.bounds.position.y - padding;
+        float right  = glyph.bounds.position.x + glyph.bounds.size.x + padding;
+        float bottom = glyph.bounds.position.y + glyph.bounds.size.y + padding;
 
-        float u1 = static_cast<float>(glyph.textureRect.left) - padding;
-        float v1 = static_cast<float>(glyph.textureRect.top) - padding;
-        float u2 = static_cast<float>(glyph.textureRect.left + glyph.textureRect.width) + padding;
-        float v2 = static_cast<float>(glyph.textureRect.top  + glyph.textureRect.height) + padding;
+        float u1 = static_cast<float>(glyph.textureRect.position.x) - padding;
+        float v1 = static_cast<float>(glyph.textureRect.position.y) - padding;
+        float u2 = static_cast<float>(glyph.textureRect.position.x + glyph.textureRect.size.x) + padding;
+        float v2 = static_cast<float>(glyph.textureRect.position.y + glyph.textureRect.size.y) + padding;
 
-        vertices.append(sf::Vertex(sf::Vector2f(position.x + left  - italicShear * top   , position.y + top),    color, sf::Vector2f(u1, v1)));
-        vertices.append(sf::Vertex(sf::Vector2f(position.x + right - italicShear * top   , position.y + top),    color, sf::Vector2f(u2, v1)));
-        vertices.append(sf::Vertex(sf::Vector2f(position.x + left  - italicShear * bottom, position.y + bottom), color, sf::Vector2f(u1, v2)));
-        vertices.append(sf::Vertex(sf::Vector2f(position.x + left  - italicShear * bottom, position.y + bottom), color, sf::Vector2f(u1, v2)));
-        vertices.append(sf::Vertex(sf::Vector2f(position.x + right - italicShear * top   , position.y + top),    color, sf::Vector2f(u2, v1)));
-        vertices.append(sf::Vertex(sf::Vector2f(position.x + right - italicShear * bottom, position.y + bottom), color, sf::Vector2f(u2, v2)));
+        vertices.append(sf::Vertex{sf::Vector2f(position.x + left  - italicShear * top,    position.y + top),    color, sf::Vector2f(u1, v1)});
+        vertices.append(sf::Vertex{sf::Vector2f(position.x + right - italicShear * top,    position.y + top),    color, sf::Vector2f(u2, v1)});
+        vertices.append(sf::Vertex{sf::Vector2f(position.x + left  - italicShear * bottom, position.y + bottom), color, sf::Vector2f(u1, v2)});
+        vertices.append(sf::Vertex{sf::Vector2f(position.x + left  - italicShear * bottom, position.y + bottom), color, sf::Vector2f(u1, v2)});
+        vertices.append(sf::Vertex{sf::Vector2f(position.x + right - italicShear * top,    position.y + top),    color, sf::Vector2f(u2, v1)});
+        vertices.append(sf::Vertex{sf::Vector2f(position.x + right - italicShear * bottom, position.y + bottom), color, sf::Vector2f(u2, v2)});
     }
 }
 
 
 ColorText::ColorText() :
 m_string             (),
-m_font               (NULL),
+m_font               (nullptr),
 m_characterSize      (30),
 m_letterSpacingFactor(1.f),
 m_lineSpacingFactor  (1.f),
-m_style              (sf::Text::Regular),
+m_style              (sf::Text::Style::Regular),
 m_fillColor          (255, 255, 255),
 m_outlineColor       (0, 0, 0),
 m_outlineThickness   (0),
@@ -64,7 +62,6 @@ m_bounds             (),
 m_geometryNeedUpdate (false),
 m_fontTextureId      (0)
 {
-
 }
 
 
@@ -75,7 +72,7 @@ m_font               (&font),
 m_characterSize      (characterSize),
 m_letterSpacingFactor(1.f),
 m_lineSpacingFactor  (1.f),
-m_style              (sf::Text::Regular),
+m_style              (sf::Text::Style::Regular),
 m_fillColor          (255, 255, 255),
 m_outlineColor       (0, 0, 0),
 m_outlineThickness   (0),
@@ -85,7 +82,6 @@ m_bounds             (),
 m_geometryNeedUpdate (true),
 m_fontTextureId      (0)
 {
-
 }
 
 
@@ -145,7 +141,7 @@ void ColorText::setLineSpacing(float spacingFactor)
 
 
 ////////////////////////////////////////////////////////////
-void ColorText::setStyle(sf::Uint32 style)
+void ColorText::setStyle(sf::Text::Style style)
 {
     if (m_style != style)
     {
@@ -160,8 +156,6 @@ void ColorText::setFillColor(const sf::Color& color)
     {
         m_fillColor = color;
 
-        // Change vertex colors directly, no need to update whole geometry
-        // (if geometry is updated anyway, we can skip this step)
         if (!m_geometryNeedUpdate)
         {
             auto real_fill_color = m_font && m_font->isColorEmojiFont() ? sf::Color::White : m_fillColor;
@@ -179,8 +173,6 @@ void ColorText::setOutlineColor(const sf::Color& color)
     {
         m_outlineColor = color;
 
-        // Change vertex colors directly, no need to update whole geometry
-        // (if geometry is updated anyway, we can skip this step)
         if (!m_geometryNeedUpdate)
         {
             for (std::size_t i = 0; i < m_outlineVertices.getVertexCount(); ++i)
@@ -237,7 +229,7 @@ float ColorText::getLineSpacing() const
 
 
 ////////////////////////////////////////////////////////////
-sf::Uint32 ColorText::getStyle() const
+sf::Text::Style ColorText::getStyle() const
 {
     return m_style;
 }
@@ -267,34 +259,27 @@ float ColorText::getOutlineThickness() const
 ////////////////////////////////////////////////////////////
 sf::Vector2f ColorText::findCharacterPos(std::size_t index) const
 {
-    using namespace sf;
-    // Make sure that we have a valid font
     if (!m_font)
         return Vector2f();
 
-    // Adjust the index if it's out of range
     if (index > m_string.getSize())
         index = m_string.getSize();
 
-    // Precompute the variables needed by the algorithm
-    bool  isBold          = m_style & sf::Text::Bold;
+    bool  isBold          = m_style & sf::Text::Style::Bold;
     float whitespaceWidth = m_font->getGlyph(L' ', m_characterSize, isBold).advance;
-    float letterSpacing   = ( whitespaceWidth / 3.f ) * ( m_letterSpacingFactor - 1.f );
+    float letterSpacing   = (whitespaceWidth / 3.f) * (m_letterSpacingFactor - 1.f);
     whitespaceWidth      += letterSpacing;
     float lineSpacing     = m_font->getLineSpacing(m_characterSize) * m_lineSpacingFactor;
 
-    // Compute the position
-    Vector2f position;
-    Uint32 prevChar = 0;
+    Vector2f  position;
+    uint32_t  prevChar = 0;
     for (std::size_t i = 0; i < index; ++i)
     {
-        Uint32 curChar = m_string[i];
+        uint32_t curChar = m_string[i];
 
-        // Apply the kerning offset
         position.x += m_font->getKerning(prevChar, curChar, m_characterSize, isBold);
         prevChar = curChar;
 
-        // Handle special characters
         switch (curChar)
         {
             case ' ':  position.x += whitespaceWidth;             continue;
@@ -302,11 +287,9 @@ sf::Vector2f ColorText::findCharacterPos(std::size_t index) const
             case '\n': position.y += lineSpacing; position.x = 0; continue;
         }
 
-        // For regular characters, add the advance offset of the glyph
         position.x += m_font->getGlyph(curChar, m_characterSize, isBold).advance + letterSpacing;
     }
 
-    // Transform the position to global coordinates
     position = getTransform().transformPoint(position);
 
     return position;
@@ -339,10 +322,9 @@ void ColorText::draw(sf::RenderTarget& target, sf::RenderStates states) const
         states.transform *= getTransform();
         states.texture = &m_font->getTexture(m_characterSize);
 
-        // Only draw the outline if there is something to draw
         if (m_outlineThickness != 0)
             target.draw(m_outlineVertices, states);
-        
+
         target.draw(m_vertices, states);
     }
 }
@@ -354,64 +336,51 @@ void ColorText::ensureGeometryUpdate() const
     if (!m_font)
         return;
 
-    // Do nothing, if geometry has not changed and the font texture has not changed
     if (!m_geometryNeedUpdate)
         return;
 
     m_fontTextureId = 777;
 
-    // Mark geometry as updated
     m_geometryNeedUpdate = false;
 
-    // Clear the previous geometry
     m_vertices.clear();
     m_outlineVertices.clear();
     m_bounds = FloatRect();
 
-    // No text: nothing to draw
     if (m_string.isEmpty())
         return;
 
-    // Compute values related to the text style
-    bool  isBold             = m_style & sf::Text::Bold;
-    bool  isUnderlined       = m_style & sf::Text::Underlined;
-    bool  isStrikeThrough    = m_style & sf::Text::StrikeThrough;
-    float italicShear        = (m_style & sf::Text::Italic) ? 0.209f : 0.f; // 12 degrees in radians
+    bool  isBold             = m_style & sf::Text::Style::Bold;
+    bool  isUnderlined       = m_style & sf::Text::Style::Underlined;
+    bool  isStrikeThrough    = m_style & sf::Text::Style::StrikeThrough;
+    float italicShear        = (m_style & sf::Text::Style::Italic) ? 0.209f : 0.f;
     float underlineOffset    = m_font->getUnderlinePosition(m_characterSize);
     float underlineThickness = m_font->getUnderlineThickness(m_characterSize);
 
-    // Compute the location of the strike through dynamically
-    // We use the center point of the lowercase 'x' glyph as the reference
-    // We reuse the underline thickness as the thickness of the strike through as well
     FloatRect xBounds = m_font->getGlyph(L'x', m_characterSize, isBold).bounds;
-    float strikeThroughOffset = xBounds.top + xBounds.height / 2.f;
+    float strikeThroughOffset = xBounds.position.y + xBounds.size.y / 2.f;
 
-    // Precompute the variables needed by the algorithm
     float whitespaceWidth = m_font->getGlyph(L' ', m_characterSize, isBold).advance;
-    float letterSpacing   = ( whitespaceWidth / 3.f ) * ( m_letterSpacingFactor - 1.f );
+    float letterSpacing   = (whitespaceWidth / 3.f) * (m_letterSpacingFactor - 1.f);
     whitespaceWidth      += letterSpacing;
     float lineSpacing     = m_font->getLineSpacing(m_characterSize) * m_lineSpacingFactor;
     float x               = 0.f;
     float y               = static_cast<float>(m_characterSize);
 
-    // Create one quad for each character
     float minX = static_cast<float>(m_characterSize);
     float minY = static_cast<float>(m_characterSize);
     float maxX = 0.f;
     float maxY = 0.f;
-    Uint32 prevChar = 0;
+    uint32_t prevChar = 0;
     for (std::size_t i = 0; i < m_string.getSize(); ++i)
     {
-        Uint32 curChar = m_string[i];
+        uint32_t curChar = m_string[i];
 
-        // Skip the \r char to avoid weird graphical issues
         if (curChar == L'\r')
             continue;
 
-        // Apply the kerning offset
         x += m_font->getKerning(prevChar, curChar, m_characterSize, isBold);
 
-        // If we're using the underlined style and there's a new line, draw a line
         if (isUnderlined && (curChar == L'\n' && prevChar != L'\n'))
         {
             addLine(m_vertices, x, y, m_fillColor, underlineOffset, underlineThickness);
@@ -420,7 +389,6 @@ void ColorText::ensureGeometryUpdate() const
                 addLine(m_outlineVertices, x, y, m_outlineColor, underlineOffset, underlineThickness, m_outlineThickness);
         }
 
-        // If we're using the strike through style and there's a new line, draw a line across all characters
         if (isStrikeThrough && (curChar == L'\n' && prevChar != L'\n'))
         {
             addLine(m_vertices, x, y, m_fillColor, strikeThroughOffset, underlineThickness);
@@ -431,10 +399,8 @@ void ColorText::ensureGeometryUpdate() const
 
         prevChar = curChar;
 
-        // Handle special characters
         if ((curChar == L' ') || (curChar == L'\n') || (curChar == L'\t'))
         {
-            // Update the current bounds (min coordinates)
             minX = std::min(minX, x);
             minY = std::min(minY, y);
 
@@ -445,46 +411,36 @@ void ColorText::ensureGeometryUpdate() const
                 case L'\n': y += lineSpacing; x = 0;  break;
             }
 
-            // Update the current bounds (max coordinates)
             maxX = std::max(maxX, x);
             maxY = std::max(maxY, y);
 
-            // Next glyph, no need to create a quad for whitespace
             continue;
         }
 
-        // Apply the outline
         if (m_outlineThickness != 0)
         {
             const Glyph& glyph = m_font->getGlyph(curChar, m_characterSize, isBold, m_outlineThickness);
-
-            // Add the outline glyph to the vertices
             addGlyphQuad(m_outlineVertices, Vector2f(x, y), m_outlineColor, glyph, italicShear);
         }
 
-        // Extract the current glyph's description
         const Glyph& glyph = m_font->getGlyph(curChar, m_characterSize, isBold);
 
-        // Add the glyph to the vertices
         auto real_fill_color = m_font->isColorEmojiFont() ? sf::Color::White : m_fillColor;
         addGlyphQuad(m_vertices, Vector2f(x, y), real_fill_color, glyph, italicShear);
 
-        // Update the current bounds
-        float left   = glyph.bounds.left;
-        float top    = glyph.bounds.top;
-        float right  = glyph.bounds.left + glyph.bounds.width;
-        float bottom = glyph.bounds.top + glyph.bounds.height;
+        float left   = glyph.bounds.position.x;
+        float top    = glyph.bounds.position.y;
+        float right  = glyph.bounds.position.x + glyph.bounds.size.x;
+        float bottom = glyph.bounds.position.y  + glyph.bounds.size.y;
 
-        minX = std::min(minX, x + left - italicShear * bottom);
+        minX = std::min(minX, x + left  - italicShear * bottom);
         maxX = std::max(maxX, x + right - italicShear * top);
         minY = std::min(minY, y + top);
         maxY = std::max(maxY, y + bottom);
 
-        // Advance to the next character
         x += glyph.advance + letterSpacing;
     }
 
-    // If we're using outline, update the current bounds
     if (m_outlineThickness != 0)
     {
         float outline = std::abs(std::ceil(m_outlineThickness));
@@ -494,7 +450,6 @@ void ColorText::ensureGeometryUpdate() const
         maxY += outline;
     }
 
-    // If we're using the underlined style, add the last line
     if (isUnderlined && (x > 0))
     {
         addLine(m_vertices, x, y, m_fillColor, underlineOffset, underlineThickness);
@@ -503,7 +458,6 @@ void ColorText::ensureGeometryUpdate() const
             addLine(m_outlineVertices, x, y, m_outlineColor, underlineOffset, underlineThickness, m_outlineThickness);
     }
 
-    // If we're using the strike through style, add the last line across all characters
     if (isStrikeThrough && (x > 0))
     {
         addLine(m_vertices, x, y, m_fillColor, strikeThroughOffset, underlineThickness);
@@ -512,9 +466,8 @@ void ColorText::ensureGeometryUpdate() const
             addLine(m_outlineVertices, x, y, m_outlineColor, strikeThroughOffset, underlineThickness, m_outlineThickness);
     }
 
-    // Update the bounding rectangle
-    m_bounds.left = minX;
-    m_bounds.top = minY;
-    m_bounds.width = maxX - minX;
-    m_bounds.height = maxY - minY;
+    m_bounds.position.x = minX;
+    m_bounds.position.y = minY;
+    m_bounds.size.x     = maxX - minX;
+    m_bounds.size.y     = maxY - minY;
 }
