@@ -1,14 +1,10 @@
 #include "color_text.hpp"
+#include "color_shaped_string.hpp"
 
 #include <SFML/Graphics/Text.hpp>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <cmath>
-
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include <hb.h>
-#include <hb-ft.h>
 
 using namespace sf;
 
@@ -377,48 +373,17 @@ void ColorText::ensureGeometryUpdate() const
     float maxX = 0.f;
     float maxY = 0.f;
 
-    // Use HarfBuzz to shape the text (font/buffer are cached in ColorFont)
-    FT_Face ftFace = static_cast<FT_Face>(m_font->getFaceHandle());
-    if (!ftFace)
+    auto shaped = ColorShapedString::shape(*m_font, m_string);
+    if (shaped.isEmpty())
         return;
 
-    // Set the size before using HarfBuzz font
-    m_font->getGlyph(L' ', m_characterSize, isBold); // ensures size is set
-
-    hb_font_t* hbFont = static_cast<hb_font_t*>(m_font->getHarfBuzzFont());
-    hb_buffer_t* hbBuffer = static_cast<hb_buffer_t*>(m_font->getHarfBuzzBuffer());
-    if (!hbFont || !hbBuffer)
-        return;
-
-    FT_Int32 loadFlags = (FT_HAS_COLOR(ftFace) ? FT_LOAD_COLOR : FT_LOAD_TARGET_NORMAL) | FT_LOAD_FORCE_AUTOHINT;
-    if (m_outlineThickness != 0)
-        loadFlags |= FT_LOAD_NO_BITMAP;
-    hb_ft_font_set_load_flags(hbFont, loadFlags);
-
-    hb_buffer_clear_contents(hbBuffer);
-    hb_buffer_set_content_type(hbBuffer, HB_BUFFER_CONTENT_TYPE_UNICODE);
-    hb_buffer_set_direction(hbBuffer, HB_DIRECTION_LTR);
-    hb_buffer_set_script(hbBuffer, HB_SCRIPT_COMMON);
-    hb_buffer_set_cluster_level(hbBuffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-
-    for (std::size_t i = 0; i < m_string.getSize(); ++i)
-        hb_buffer_add(hbBuffer, m_string[i], static_cast<unsigned int>(i));
-
-    hb_buffer_guess_segment_properties(hbBuffer);
-
-    hb_shape(hbFont, hbBuffer, nullptr, 0);
-
-    unsigned int glyphCount = hb_buffer_get_length(hbBuffer);
-    const hb_glyph_info_t* glyphInfo = hb_buffer_get_glyph_infos(hbBuffer, nullptr);
-
-    // HarfBuzz is used only for codepoint-to-glyph-index mapping (ZWJ sequences etc.)
-    // Advance/offset are taken from the glyph itself (already scaled by loadGlyphByIndex)
+    const auto& shapedGlyphs = shaped.getGlyphs();
 
     uint32_t prevCluster = UINT32_MAX;
-    for (unsigned int i = 0; i < glyphCount; ++i)
+    for (std::size_t i = 0; i < shapedGlyphs.size(); ++i)
     {
-        uint32_t glyphIndex = glyphInfo[i].codepoint; // after shaping, this is a glyph index
-        uint32_t cluster = glyphInfo[i].cluster;
+        uint32_t glyphIndex = shapedGlyphs[i].glyphIndex;
+        uint32_t cluster = shapedGlyphs[i].cluster;
 
         // Get the original codepoint for whitespace/newline checks
         uint32_t curChar = (cluster < m_string.getSize()) ? m_string[cluster] : 0;
